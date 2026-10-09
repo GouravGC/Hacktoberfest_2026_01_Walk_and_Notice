@@ -1,24 +1,11 @@
-import os
-
 import streamlit as st
 from dotenv import load_dotenv
-from openai import OpenAI
 
 from src.generator import generate_mission
 
 
-# ============================================
-# Configuration
-# ============================================
-
 load_dotenv()
 
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
-
-
-# ============================================
-# Page Configuration
-# ============================================
 
 st.set_page_config(
     page_title="Walk & Notice",
@@ -26,10 +13,6 @@ st.set_page_config(
     layout="centered",
 )
 
-
-# ============================================
-# Header
-# ============================================
 
 st.title("🌿 Walk & Notice")
 
@@ -44,31 +27,37 @@ Choose a few preferences and get a simple outdoor observation mission.
 )
 
 
-# ============================================
-# API Configuration
-# ============================================
+st.subheader("🤖 Choose AI Provider")
 
-if not OPENROUTER_API_KEY:
-    st.error(
-        "OPENROUTER_API_KEY is not configured. "
-        "Add it to your .env file."
-    )
-    st.stop()
-
-client = OpenAI(
-    base_url="https://openrouter.ai/api/v1",
-    api_key=OPENROUTER_API_KEY,
+provider_label = st.radio(
+    "How should the mission be generated?",
+    [
+        "🦙 Local Gemma 4 E4B — Ollama",
+        "☁️ OpenRouter",
+    ],
 )
 
 
-# ============================================
-# User Preferences
-# ============================================
+if provider_label.startswith("🦙"):
+    provider = "ollama"
+
+    st.info(
+        "Running locally: Gemma 4 E4B → Ollama → your RTX 3060."
+    )
+
+else:
+    provider = "openrouter"
+
+    st.info(
+        "Running through OpenRouter using the configured open-weight model."
+    )
+
 
 duration = st.selectbox(
     "⏱️ How much time do you have?",
     [15, 30],
 )
+
 
 environment = st.selectbox(
     "🌳 Where are you going?",
@@ -80,6 +69,7 @@ environment = st.selectbox(
         "Open outdoor area",
     ],
 )
+
 
 interest = st.selectbox(
     "🔎 What interests you?",
@@ -93,6 +83,7 @@ interest = st.selectbox(
     ],
 )
 
+
 energy = st.selectbox(
     "⚡ How are you feeling?",
     [
@@ -103,47 +94,61 @@ energy = st.selectbox(
 )
 
 
-# ============================================
-# Mission Generation
-# ============================================
-
 if st.button(
     "🌿 Generate My Mission",
     type="primary",
     use_container_width=True,
 ):
 
-    with st.spinner("Creating your outdoor mission..."):
+    with st.spinner(
+        f"Generating mission using {provider}..."
+    ):
 
         try:
+
             mission = generate_mission(
-                client=client,
                 duration=duration,
                 environment=environment,
                 interest=interest,
                 energy=energy,
+                provider=provider,
             )
 
             st.session_state["mission"] = mission
+            st.session_state["provider"] = provider
 
         except Exception as exc:
+
             st.error(
                 f"Could not generate a mission: {exc}"
             )
 
 
-# ============================================
-# Mission Display
-# ============================================
-
 if "mission" in st.session_state:
 
     st.divider()
 
+    provider_used = st.session_state.get(
+        "provider",
+        "unknown",
+    )
+
+    if provider_used == "ollama":
+        st.caption(
+            "🦙 Generated locally with Gemma 4 E4B via Ollama."
+        )
+    else:
+        st.caption(
+            "☁️ Generated through OpenRouter."
+        )
+
     st.subheader("🌱 Your Mission")
 
-    st.markdown(st.session_state["mission"])
+    st.markdown(
+        st.session_state["mission"]
+    )
 
     st.success(
-        "Mission ready. Now put your phone away and go notice something."
+        "Mission ready. Now put your phone away "
+        "and go notice something."
     )
